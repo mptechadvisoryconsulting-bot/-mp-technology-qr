@@ -1,0 +1,22 @@
+{
+  "name": "mp-technology-qr",
+  "version": "0.1.0",
+  "description": "MP Technology Consulting branded QR code generator.",
+  "main": "main.js",
+  "private": true,
+  "scripts": {
+    "build": "node scripts/build-web.js",
+    "build:web": "node scripts/build-web.js",
+    "start": "electron .",
+    "build:win": "powershell -ExecutionPolicy Bypass -File scripts/build-win.ps1"
+  },
+  "devDependencies": {
+    "browserify": "^17.0.1",
+    "electron": "^31.7.7",
+    "electron-packager": "^17.1.2",
+    "terser": "^5.48.0"
+  },
+  "dependencies": {
+    "qrcode": "^1.5.4"
+  }
+}

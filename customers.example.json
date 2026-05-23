@@ -1,0 +1,9 @@
+{
+  "appName": "Acme QR",
+  "customerName": "Acme Company",
+  "logoSource": "C:\\Path\\To\\customer-logo.png",
+  "logoShortName": "ACME",
+  "defaultFileName": "acme-qr",
+  "tagline": "Branded QR codes for Acme Company.",
+  "sampleUrl": "https://acme.com"
+}
