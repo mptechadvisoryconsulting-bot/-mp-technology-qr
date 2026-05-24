@@ -1,0 +1,183 @@
+import Link from "next/link";
+import { redirect } from "next/navigation";
+import { createAdminSupabase } from "../lib/supabase-admin";
+import { getPlanLimits } from "../lib/pricing";
+
+const DEFAULT_PUBLIC_SITE_URL = "https://mp-technology-qr.vercel.app";
+
+const capabilities = [
+  ["Dynamic links", "Change destinations without reprinting codes."],
+  ["Brand kits", "Keep customer logos, colors, and defaults together."],
+  ["Scan tracking", "Record visits through secure redirect links."],
+  ["Customer workspaces", "Give each business a private dashboard."],
+];
+
+export default async function HomePage({ searchParams }) {
+  const params = await searchParams;
+  if (params?.qr) {
+    const redirectResult = await resolveQrCode(params.qr);
+    if (redirectResult?.kind === "redirect") {
+      redirect(redirectResult.destination);
+    }
+    if (redirectResult?.kind === "text") {
+      return (
+        <main className="app-shell auth-shell">
+          <section className="panel auth-panel">
+            <p className="eyebrow">QR text</p>
+            <h1>Message</h1>
+            <p className="lead text-result">{redirectResult.destination}</p>
+          </section>
+        </main>
+      );
+    }
+    if (redirectResult?.kind === "scheme") {
+      return (
+        <main className="app-shell auth-shell">
+          <section className="panel auth-panel">
+            <p className="eyebrow">QR action</p>
+            <h1>Opening...</h1>
+            <p className="lead">If nothing opens automatically, use the button below.</p>
+            <a className="primary-button" href={redirectResult.destination}>Open QR action</a>
+            <script dangerouslySetInnerHTML={{ __html: `window.location.replace(${JSON.stringify(redirectResult.destination)});` }} />
+          </section>
+        </main>
+      );
+    }
+  }
+
+  return (
+    <main className="app-shell">
+      <section className="workspace">
+        <header className="topbar">
+          <Link className="brand" href="/">
+            <span className="brand-mark">QR</span>
+            <span>QR Operations</span>
+          </Link>
+          <nav aria-label="Primary">
+            <Link href="/pricing">Pricing</Link>
+            <Link href="/owner">Owner</Link>
+            <Link href="/login">Log in</Link>
+            <Link className="nav-cta" href="/signup">Launch workspace</Link>
+          </nav>
+        </header>
+
+        <section className="hero hero-modern">
+          <div className="hero-copy">
+            <p className="eyebrow">QR commerce platform</p>
+            <h1>Branded QR workspaces for every customer you serve.</h1>
+            <p className="lead">
+              Sell customers a private QR portal with saved codes, dynamic redirects, scan tracking, and brand-safe
+              downloads. Built for local businesses, consultants, venues, and agencies.
+            </p>
+            <div className="hero-actions">
+              <Link className="primary-button" href="/signup">Create customer account</Link>
+              <Link className="secondary-button" href="/pricing">View plans</Link>
+            </div>
+          </div>
+
+          <div className="product-preview" aria-label="Product preview">
+            <div className="preview-topline">
+              <span>Live QR campaign</span>
+              <strong>Ready</strong>
+            </div>
+            <div className="preview-grid">
+              <div className="preview-form">
+                <span className="mini-label">Destination</span>
+                <strong>mptechnologyconsulting.com</strong>
+                <span className="mini-label">Mode</span>
+                <strong>Dynamic tracked link</strong>
+                <div className="segmented">
+                  <span className="active">URL</span>
+                  <span>vCard</span>
+                  <span>Wi-Fi</span>
+                </div>
+              </div>
+              <div className="qr-mock" aria-hidden="true">
+                <div />
+                <div />
+                <div />
+                <span />
+              </div>
+            </div>
+            <div className="preview-stats">
+              <div><strong>1,284</strong><span>Scans</span></div>
+              <div><strong>42</strong><span>Codes</span></div>
+              <div><strong>98%</strong><span>Uptime</span></div>
+            </div>
+          </div>
+        </section>
+
+        <section className="feature-grid">
+          {capabilities.map(([title, text]) => (
+            <article className="feature-card" key={title}>
+              <strong>{title}</strong>
+              <p>{text}</p>
+            </article>
+          ))}
+        </section>
+
+        <section className="pricing-band">
+          <div>
+            <p className="eyebrow">Simple packages</p>
+            <h2>Start with a 14-day trial, then bill monthly, quarterly, or yearly.</h2>
+          </div>
+          <div className="plan-list horizontal">
+            <Link href="/pricing"><strong>Starter</strong><span>$9/mo for smaller businesses</span></Link>
+            <Link href="/pricing"><strong>Pro</strong><span>$19/mo for active campaigns</span></Link>
+            <Link href="/pricing"><strong>Business</strong><span>$39/mo for teams and reporting</span></Link>
+          </div>
+        </section>
+      </section>
+    </main>
+  );
+}
+
+async function resolveQrCode(code) {
+  if (code === "preview") return null;
+  const supabase = createAdminSupabase();
+  const { data: qrCode, error } = await supabase
+    .from("qr_codes")
+    .select("id, user_id, account_id, type, destination_url")
+    .eq("short_code", code)
+    .eq("is_dynamic", true)
+    .maybeSingle();
+
+  if (error || !qrCode) return null;
+
+  await trackScan(supabase, qrCode);
+
+  if (qrCode.type === "text") return { kind: "text", destination: qrCode.destination_url };
+  if (qrCode.type === "support") return { kind: "redirect", destination: qrCode.destination_url || `${getPublicSiteUrl()}/support/${code}` };
+  if (/^(mailto|tel|sms):/i.test(qrCode.destination_url)) return { kind: "scheme", destination: qrCode.destination_url };
+  return { kind: "redirect", destination: qrCode.destination_url };
+}
+
+function getPublicSiteUrl() {
+  const configuredUrl = process.env.NEXT_PUBLIC_SITE_URL || DEFAULT_PUBLIC_SITE_URL;
+  return configuredUrl.replace(/\/$/, "");
+}
+
+async function trackScan(supabase, qrCode) {
+  let planId = "free";
+  if (qrCode.account_id) {
+    const { data: account } = await supabase.from("accounts").select("plan").eq("id", qrCode.account_id).maybeSingle();
+    planId = account?.plan || "free";
+  } else {
+    const { data: profile } = await supabase.from("profiles").select("plan").eq("id", qrCode.user_id).maybeSingle();
+    planId = profile?.plan || "free";
+  }
+
+  const { scanLimit } = getPlanLimits(planId);
+  const monthStart = new Date();
+  monthStart.setUTCDate(1);
+  monthStart.setUTCHours(0, 0, 0, 0);
+  const { count } = await supabase
+    .from("qr_scans")
+    .select("id, qr_codes!inner(user_id)", { count: "exact", head: true })
+    .eq(qrCode.account_id ? "qr_codes.account_id" : "qr_codes.user_id", qrCode.account_id || qrCode.user_id)
+    .gte("scanned_at", monthStart.toISOString());
+
+  if ((count || 0) < scanLimit) {
+    await supabase.from("qr_scans").insert({ qr_code_id: qrCode.id });
+  }
+}

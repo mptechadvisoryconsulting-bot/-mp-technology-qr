@@ -1,0 +1,22 @@
+{
+    "name":  "mp-technology-qr",
+    "version":  "0.1.0",
+    "description":  "Multi-tenant QR operations SaaS platform.",
+    "private":  true,
+    "scripts":  {
+                    "dev":  "next dev",
+                    "build":  "next build",
+                    "start":  "next start"
+                },
+    "devDependencies":  {
+
+                        },
+    "dependencies":  {
+                         "@supabase/supabase-js":  "^2.106.1",
+                         "next":  "^16.2.6",
+                         "qrcode":  "^1.5.4",
+                         "react":  "^19.2.6",
+                         "react-dom":  "^19.2.6",
+                         "stripe":  "^22.1.1"
+                     }
+}
