@@ -261,12 +261,8 @@ export default function DashboardPage() {
       <section className="workspace dashboard-shell">
         <header className="topbar app-topbar">
           <Link className="brand" href="/dashboard">
-            {profile.logo_url ? (
-              <img className="brand-logo" src={profile.logo_url} alt="" />
-            ) : (
-              <span className="brand-mark">QR</span>
-            )}
-            <span>{profile.brand_name || profile.company_name || "Customer QR"}</span>
+            <span className="brand-mark">SO</span>
+            <span>ScanOps</span>
           </Link>
           <nav aria-label="Primary">
             <Link href="/pricing">Plans</Link>
@@ -292,7 +288,7 @@ export default function DashboardPage() {
               </div>
               <div className="folder-row">
                 <span className="folder-icon" />
-                <strong>{account?.company_name || profile.company_name || "Company workspace"}</strong>
+                <strong>Operations workspace</strong>
                 <em>{codes.length}</em>
               </div>
             </div>
