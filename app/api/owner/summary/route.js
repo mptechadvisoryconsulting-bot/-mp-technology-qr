@@ -53,6 +53,7 @@ export async function GET(request) {
       createdAt: account.created_at,
       plan: subscription?.plan || account.plan || profile?.plan || "free",
       status: subscription?.status || "free",
+      suspendedAt: account.suspended_at,
       qrCount: accountCodes.length,
       dynamicCount: accountCodes.filter((code) => code.is_dynamic).length,
       scanCount: accountScans.total,

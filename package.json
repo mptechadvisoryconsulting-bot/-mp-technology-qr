@@ -1,7 +1,7 @@
 {
-    "name":  "mp-technology-qr",
+    "name":  "scanops",
     "version":  "0.1.0",
-    "description":  "Multi-tenant QR operations SaaS platform.",
+    "description":  "ScanOps multi-tenant operational QR automation SaaS platform.",
     "private":  true,
     "scripts":  {
                     "dev":  "next dev",

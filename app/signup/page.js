@@ -49,7 +49,7 @@ export default function SignupPage() {
       <form className="panel auth-panel" onSubmit={submit}>
         <Link className="brand" href="/">
           <span className="brand-mark">QR</span>
-          <span>QR Operations</span>
+          <span>ScanOps</span>
         </Link>
         <div>
           <p className="eyebrow">New customer</p>
@@ -64,7 +64,7 @@ export default function SignupPage() {
           <span>Username</span>
           <input
             value={username}
-            onChange={(event) => setUsername(event.target.value.replace(/[^a-z0-9_.-]/gi, "").toLowerCase())}
+            onChange={(event) => setUsername(event.target.value.replace(/[^a-zA-Z0-9_.-]/g, ""))}
             minLength={3}
             placeholder="companyadmin"
             required

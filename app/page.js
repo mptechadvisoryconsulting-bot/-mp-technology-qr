@@ -5,7 +5,7 @@ import { getPlanLimits } from "../lib/pricing";
 
 export const dynamic = "force-dynamic";
 
-const DEFAULT_PUBLIC_SITE_URL = "https://mp-technology-qr.vercel.app";
+const DEFAULT_PUBLIC_SITE_URL = "https://app.scanops.io";
 
 const capabilities = [
   ["Dynamic links", "Change destinations without reprinting codes."],
@@ -55,7 +55,7 @@ export default async function HomePage({ searchParams }) {
         <header className="topbar">
           <Link className="brand" href="/">
             <span className="brand-mark">QR</span>
-            <span>QR Operations</span>
+            <span>ScanOps</span>
           </Link>
           <nav aria-label="Primary">
             <Link href="/demo">Demo</Link>
@@ -68,11 +68,11 @@ export default async function HomePage({ searchParams }) {
 
         <section className="hero hero-modern">
           <div className="hero-copy">
-            <p className="eyebrow">QR commerce platform</p>
-            <h1>Branded QR workspaces for every customer you serve.</h1>
+            <p className="eyebrow">Operational intelligence platform</p>
+            <h1>Dynamic QR automation for the teams that keep operations moving.</h1>
             <p className="lead">
-              Sell customers a private QR portal with saved codes, dynamic redirects, scan tracking, and brand-safe
-              downloads. Built for local businesses, consultants, venues, and agencies.
+              ScanOps gives each business a secure workspace for dynamic QR codes, editable redirects, scan analytics,
+              support workflows, and brand-controlled field experiences.
             </p>
             <div className="hero-actions">
               <Link className="primary-button" href="/signup">Create customer account</Link>
@@ -88,7 +88,7 @@ export default async function HomePage({ searchParams }) {
             <div className="preview-grid">
               <div className="preview-form">
                 <span className="mini-label">Destination</span>
-                <strong>mptechnologyconsulting.com</strong>
+                <strong>scanops.io/workflows</strong>
                 <span className="mini-label">Mode</span>
                 <strong>Dynamic tracked link</strong>
                 <div className="segmented">
@@ -142,12 +142,18 @@ async function resolveQrCode(code) {
   const supabase = createAdminSupabase();
   const { data: qrCode, error } = await supabase
     .from("qr_codes")
-    .select("id, user_id, account_id, type, destination_url")
+    .select("id, user_id, account_id, type, destination_url, status, expires_at")
     .eq("short_code", code)
     .eq("is_dynamic", true)
     .maybeSingle();
 
   if (error || !qrCode) return null;
+  if (qrCode.status && qrCode.status !== "active") return null;
+  if (qrCode.expires_at && new Date(qrCode.expires_at).getTime() <= Date.now()) return null;
+  if (qrCode.account_id) {
+    const { data: account } = await supabase.from("accounts").select("suspended_at").eq("id", qrCode.account_id).maybeSingle();
+    if (account?.suspended_at) return null;
+  }
 
   await trackScan(supabase, qrCode);
 

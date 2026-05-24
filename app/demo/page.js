@@ -13,7 +13,7 @@ export default function DemoPage() {
         <header className="topbar app-topbar">
           <Link className="brand" href="/demo">
             <span className="brand-mark">QR</span>
-            <span>QR Operations Demo</span>
+            <span>ScanOps Demo</span>
           </Link>
           <nav aria-label="Primary">
             <Link href="/">Home</Link>
@@ -69,7 +69,7 @@ export default function DemoPage() {
                     <span>Updated today</span>
                   </p>
                   <div className="qr-row-link">
-                    <span className="table-link">qr.example/{code.name.toLowerCase().replaceAll(" ", "-")}</span>
+                    <span className="table-link">app.scanops.io/?qr={code.name.replaceAll(" ", "")}</span>
                     <small>{code.destination}</small>
                   </div>
                 </div>

@@ -37,6 +37,27 @@ export default function OwnerPage() {
     setMessage("");
   }
 
+  async function accountAction(accountId, action) {
+    setMessage(`${action === "suspend" ? "Suspending" : "Restoring"} account...`);
+    const supabase = createBrowserSupabase();
+    const { data } = await supabase.auth.getSession();
+    const token = data.session?.access_token;
+    const response = await fetch("/api/owner/account-action", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({ accountId, action }),
+    });
+    const payload = await response.json();
+    if (!response.ok) {
+      setMessage(payload.error || "Owner action failed.");
+      return;
+    }
+    await load();
+  }
+
   return (
     <main className="app-shell">
       <section className="workspace dashboard-shell">
@@ -93,6 +114,7 @@ export default function OwnerPage() {
                     <th>QR Codes</th>
                     <th>Scans</th>
                     <th>Joined</th>
+                    <th>Controls</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -100,10 +122,19 @@ export default function OwnerPage() {
                     <tr key={account.id}>
                       <td><strong>{account.company}</strong></td>
                       <td>{account.email}</td>
-                      <td>{account.plan} / {account.status}</td>
+                      <td>{account.suspendedAt ? "suspended" : `${account.plan} / ${account.status}`}</td>
                       <td>{account.dynamicCount} dynamic, {account.qrCount} total</td>
                       <td>{account.monthlyScanCount} month, {account.scanCount} total</td>
                       <td>{new Date(account.createdAt).toLocaleDateString()}</td>
+                      <td>
+                        <button
+                          className="secondary-button"
+                          type="button"
+                          onClick={() => accountAction(account.id, account.suspendedAt ? "restore" : "suspend")}
+                        >
+                          {account.suspendedAt ? "Restore" : "Suspend"}
+                        </button>
+                      </td>
                     </tr>
                   ))}
                 </tbody>

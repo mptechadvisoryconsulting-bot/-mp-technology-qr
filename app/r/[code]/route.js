@@ -2,14 +2,14 @@ import { NextResponse } from "next/server";
 import { createAdminSupabase } from "../../../lib/supabase-admin";
 import { getPlanLimits } from "../../../lib/pricing";
 
-const DEFAULT_PUBLIC_SITE_URL = "https://mp-technology-qr.vercel.app";
+const DEFAULT_PUBLIC_SITE_URL = "https://app.scanops.io";
 
 export async function GET(request, { params }) {
   const { code } = await params;
   const supabase = createAdminSupabase();
   const { data: qrCode, error } = await supabase
     .from("qr_codes")
-    .select("id, user_id, account_id, type, destination_url")
+    .select("id, user_id, account_id, type, destination_url, status, expires_at")
     .eq("short_code", code)
     .eq("is_dynamic", true)
     .maybeSingle();
@@ -19,6 +19,21 @@ export async function GET(request, { params }) {
       status: 404,
       headers: { "Content-Type": "text/html; charset=utf-8" },
     });
+  }
+  if ((qrCode.status && qrCode.status !== "active") || (qrCode.expires_at && new Date(qrCode.expires_at).getTime() <= Date.now())) {
+    return new Response(renderNotFoundPage(code), {
+      status: 410,
+      headers: { "Content-Type": "text/html; charset=utf-8" },
+    });
+  }
+  if (qrCode.account_id) {
+    const { data: account } = await supabase.from("accounts").select("suspended_at").eq("id", qrCode.account_id).maybeSingle();
+    if (account?.suspended_at) {
+      return new Response(renderNotFoundPage(code), {
+        status: 410,
+        headers: { "Content-Type": "text/html; charset=utf-8" },
+      });
+    }
   }
 
   const userAgent = request.headers.get("user-agent") || "";

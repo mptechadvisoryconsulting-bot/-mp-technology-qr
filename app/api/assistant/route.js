@@ -17,7 +17,7 @@ const fallbackAnswers = [
   {
     keywords: ["vercel", "login", "preview"],
     answer:
-      "Use the production domain for QR payloads. Set NEXT_PUBLIC_SITE_URL to https://mp-technology-qr.vercel.app and create a new QR after redeploying.",
+      "Use the production app domain for QR payloads. Set NEXT_PUBLIC_SITE_URL to https://app.scanops.io after the domain is connected, then create a new QR after redeploying.",
   },
 ];
 
@@ -51,7 +51,7 @@ async function askOpenAI(question) {
     body: JSON.stringify({
       model: process.env.OPENAI_MODEL || "gpt-5.2",
       instructions:
-        "You are the support assistant for a branded QR code SaaS. Answer setup questions clearly and briefly. Focus on QR creation, dynamic links, scan analytics, account privacy, Stripe billing, Supabase auth, and Vercel deployment. Do not ask for secret keys.",
+        "You are the support assistant for ScanOps, an operational QR automation SaaS. Answer setup questions clearly and briefly. Focus on QR creation, dynamic links, scan analytics, account privacy, Stripe billing, Supabase auth, and Vercel deployment. Do not ask for secret keys.",
       input: question,
     }),
   });

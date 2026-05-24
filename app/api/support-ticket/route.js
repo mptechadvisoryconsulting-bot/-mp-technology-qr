@@ -1,6 +1,10 @@
 import { createAdminSupabase } from "../../../lib/supabase-admin";
+import { checkRateLimit } from "../../../lib/rate-limit";
 
 export async function POST(request) {
+  const rate = checkRateLimit(request, "support-ticket", 10, 60000);
+  if (!rate.allowed) return Response.json({ error: "Too many support requests. Try again shortly." }, { status: 429 });
+
   const body = await request.json();
   const code = String(body.code || "").trim();
   const subject = String(body.subject || "").trim();

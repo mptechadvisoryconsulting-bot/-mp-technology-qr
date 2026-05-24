@@ -2,7 +2,7 @@
 
 import QRCode from "qrcode";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { makeShortCode, normalizeUrl } from "../lib/qr";
+import { makeShortCode, normalizeUrl, sanitizeQrAlias } from "../lib/qr";
 
 const templates = [
   { id: "url", label: "URL", hint: "Website, landing page, booking link" },
@@ -13,7 +13,7 @@ const templates = [
   { id: "support", label: "Support", hint: "Open a customer request form" },
 ];
 
-const DEFAULT_PUBLIC_SITE_URL = "https://mp-technology-qr.vercel.app";
+const DEFAULT_PUBLIC_SITE_URL = "https://app.scanops.io";
 
 function getPublicSiteUrl() {
   const configuredUrl = process.env.NEXT_PUBLIC_SITE_URL || DEFAULT_PUBLIC_SITE_URL;
@@ -24,7 +24,8 @@ export default function QrEditor({ supabase, user, profile, accountId, usage, on
   const canvasRef = useRef(null);
   const [type, setType] = useState("url");
   const [name, setName] = useState("Homepage QR");
-  const [url, setUrl] = useState(profile?.sample_url || "https://mptechnologyconsulting.com");
+  const [url, setUrl] = useState(profile?.sample_url || "https://scanops.io");
+  const [customAlias, setCustomAlias] = useState("");
   const [textValue, setTextValue] = useState("Scan me from this QR code.");
   const [emailAddress, setEmailAddress] = useState("");
   const [emailSubject, setEmailSubject] = useState("");
@@ -34,6 +35,9 @@ export default function QrEditor({ supabase, user, profile, accountId, usage, on
   const [smsMessage, setSmsMessage] = useState("");
   const [supportTopic, setSupportTopic] = useState("Customer support request");
   const [mode, setMode] = useState("dynamic");
+  const [qrStatus, setQrStatus] = useState("active");
+  const [expiresAt, setExpiresAt] = useState("");
+  const [tags, setTags] = useState("");
   const [message, setMessage] = useState("");
   const [foreground, setForeground] = useState(profile?.foreground || "#111827");
   const [eyeColor, setEyeColor] = useState(profile?.foreground || "#111827");
@@ -109,8 +113,28 @@ export default function QrEditor({ supabase, user, profile, accountId, usage, on
       return;
     }
 
-    const shortCode = makeShortCode();
     const isTrackedMode = mode === "dynamic" || type === "support";
+    const sanitizedAlias = sanitizeQrAlias(customAlias);
+    if (customAlias.trim() && sanitizedAlias !== customAlias.trim()) {
+      setMessage("Alias can only use letters, numbers, dots, dashes, and underscores.");
+      return;
+    }
+    if (sanitizedAlias && sanitizedAlias.length < 4) {
+      setMessage("Custom aliases must be at least 4 characters.");
+      return;
+    }
+    const shortCode = isTrackedMode ? sanitizedAlias || makeShortCode() : null;
+    if (shortCode) {
+      const { data: existingCode } = await supabase
+        .from("qr_codes")
+        .select("id")
+        .eq("short_code", shortCode)
+        .maybeSingle();
+      if (existingCode) {
+        setMessage("That custom alias is already taken. Try another.");
+        return;
+      }
+    }
     const dynamicUrl = `${getPublicSiteUrl()}/?qr=${shortCode}`;
     const finalDestination = type === "support" ? `${getPublicSiteUrl()}/support/${shortCode}` : directPayload;
     const qrPayload = isTrackedMode ? dynamicUrl : directPayload;
@@ -123,8 +147,14 @@ export default function QrEditor({ supabase, user, profile, accountId, usage, on
       type,
       destination_url: finalDestination,
       payload: qrPayload,
-      short_code: isTrackedMode ? shortCode : null,
+      short_code: shortCode,
       is_dynamic: isTrackedMode,
+      status: qrStatus,
+      expires_at: expiresAt ? new Date(expiresAt).toISOString() : null,
+      tags: tags
+        .split(",")
+        .map((tag) => tag.trim())
+        .filter(Boolean),
       foreground,
       background,
       logo_url: profile?.logo_url || null,
@@ -155,6 +185,32 @@ export default function QrEditor({ supabase, user, profile, accountId, usage, on
     anchor.click();
   }
 
+  async function downloadSvg() {
+    const svg = await QRCode.toString(previewPayload, {
+      type: "svg",
+      errorCorrectionLevel: "H",
+      color: { dark: foreground, light: background },
+      margin: 4,
+    });
+    const blob = new Blob([svg], { type: "image/svg+xml" });
+    const anchor = document.createElement("a");
+    anchor.href = URL.createObjectURL(blob);
+    anchor.download = `${name.trim().replace(/[^a-z0-9-_]+/gi, "-") || "qr-code"}.svg`;
+    anchor.click();
+    URL.revokeObjectURL(anchor.href);
+  }
+
+  function downloadPdf() {
+    const imageUrl = canvasRef.current.toDataURL("image/png");
+    const popup = window.open("", "_blank", "width=900,height=1100");
+    if (!popup) {
+      setMessage("Allow popups to export a PDF.");
+      return;
+    }
+    popup.document.write(`<!doctype html><title>${escapeHtml(name)}</title><style>body{font-family:Arial,sans-serif;margin:40px;text-align:center}img{width:78%;max-width:720px}p{color:#475467}</style><h1>${escapeHtml(name)}</h1><img src="${imageUrl}" alt="QR code"/><p>${escapeHtml(previewPayload)}</p><script>window.onload=()=>window.print();</script>`);
+    popup.document.close();
+  }
+
   return (
     <section className="studio-grid">
       <div className="panel editor-panel">
@@ -181,6 +237,16 @@ export default function QrEditor({ supabase, user, profile, accountId, usage, on
             <span>Campaign name</span>
             <input value={name} onChange={(event) => setName(event.target.value)} />
           </label>
+          {(mode === "dynamic" || type === "support") && (
+            <label className="field">
+              <span>Optional custom alias</span>
+              <input
+                value={customAlias}
+                onChange={(event) => setCustomAlias(sanitizeQrAlias(event.target.value))}
+                placeholder="AssetA7 or Warehouse-02"
+              />
+            </label>
+          )}
           <label className="field">
             <span>{getPrimaryFieldLabel(type)}</span>
             {type === "url" && (
@@ -229,10 +295,27 @@ export default function QrEditor({ supabase, user, profile, accountId, usage, on
               </select>
             </label>
             <label className="field">
-              <span>Logo size {logoSize}%</span>
-              <input value={logoSize} onChange={(event) => setLogoSize(Number(event.target.value))} type="range" min="0" max="22" />
+              <span>Activation</span>
+              <select value={qrStatus} onChange={(event) => setQrStatus(event.target.value)}>
+                <option value="active">Active</option>
+                <option value="paused">Paused</option>
+              </select>
             </label>
           </div>
+          <div className="two-col">
+            <label className="field">
+              <span>Tags or categories</span>
+              <input value={tags} onChange={(event) => setTags(event.target.value)} placeholder="Warehouse, Support, Asset" />
+            </label>
+            <label className="field">
+              <span>Expiration date</span>
+              <input value={expiresAt} onChange={(event) => setExpiresAt(event.target.value)} type="datetime-local" />
+            </label>
+          </div>
+          <label className="field">
+            <span>Logo size {logoSize}%</span>
+            <input value={logoSize} onChange={(event) => setLogoSize(Number(event.target.value))} type="range" min="0" max="22" />
+          </label>
           <div className="two-col">
             <label className="field">
               <span>QR pattern</span>
@@ -282,6 +365,8 @@ export default function QrEditor({ supabase, user, profile, accountId, usage, on
         <div className="export-actions">
           <button className="primary-button" type="button" onClick={saveQr}>Save campaign</button>
           <button className="secondary-button" type="button" onClick={downloadPng}>Download PNG</button>
+          <button className="secondary-button" type="button" onClick={downloadSvg}>Download SVG</button>
+          <button className="secondary-button" type="button" onClick={downloadPdf}>Download PDF</button>
         </div>
         {usage && (
           <p className="form-message">
@@ -458,4 +543,12 @@ function getLuminance(hex) {
   const rgb = hex.replace("#", "").match(/.{1,2}/g).map((value) => parseInt(value, 16) / 255);
   const [r, g, b] = rgb.map((value) => (value <= 0.03928 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4));
   return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+}
+
+function escapeHtml(value) {
+  return String(value || "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
 }

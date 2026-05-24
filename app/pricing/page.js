@@ -28,9 +28,14 @@ export default function PricingPage() {
     setMessage("Opening secure checkout...");
 
     try {
+      const supabase = createBrowserSupabase();
+      const { data: sessionData } = supabase ? await supabase.auth.getSession() : { data: {} };
       const response = await fetch("/api/stripe/checkout", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          ...(sessionData.session?.access_token ? { Authorization: `Bearer ${sessionData.session.access_token}` } : {}),
+        },
         body: JSON.stringify({
           planId,
           termId,
@@ -44,7 +49,7 @@ export default function PricingPage() {
         setLoadingPlan("");
         return;
       }
-      window.location.href = data.url;
+      window.location.href = data.url || "/dashboard?billing=updated";
     } catch (error) {
       setMessage(error.message);
       setLoadingPlan("");
@@ -57,7 +62,7 @@ export default function PricingPage() {
         <header className="topbar">
           <Link className="brand" href="/">
             <span className="brand-mark">QR</span>
-            <span>QR Operations</span>
+            <span>ScanOps</span>
           </Link>
           <nav aria-label="Primary">
             <Link href="/dashboard">Dashboard</Link>
@@ -68,11 +73,11 @@ export default function PricingPage() {
 
         <section className="pricing-hero panel">
           <div>
-            <p className="eyebrow">14-day free trial</p>
-            <h1>Plans your customers can understand in one glance.</h1>
+            <p className="eyebrow">ScanOps billing</p>
+            <h1>Operational QR automation plans built for scale.</h1>
             <p className="lead">
-              Competitive pricing for branded QR workspaces, with monthly, quarterly, and yearly billing. Stripe
-              collects payment after the trial, and a buyer can connect their own Stripe account by replacing the keys.
+              Start first-time accounts with a 14-day trial, then upgrade or downgrade with Stripe proration while
+              preserving billing cycles and subscription history.
             </p>
           </div>
           <div className="billing-toggle" aria-label="Billing period">
@@ -122,7 +127,7 @@ export default function PricingPage() {
                 disabled={loadingPlan === plan.id}
                 onClick={() => startCheckout(plan.id)}
               >
-                {plan.custom ? "Contact sales" : loadingPlan === plan.id ? "Opening..." : "Start 14-day trial"}
+                {plan.custom ? "Contact sales" : loadingPlan === plan.id ? "Opening..." : user ? "Choose plan" : "Start trial"}
               </button>
             </article>
           ))}
@@ -131,10 +136,10 @@ export default function PricingPage() {
         <section className="panel payment-note">
           <div>
             <p className="eyebrow">Payment ownership</p>
-            <h2>Built for your business now, and resale later.</h2>
+            <h2>Built for low-maintenance SaaS ownership.</h2>
             <p>
-              Your Vercel environment variables decide who gets paid. Use your Stripe keys for your business,
-              or let a buyer replace them with their own Stripe keys and price IDs after purchase.
+              ScanOps uses Stripe subscriptions, customer billing portals, webhooks, and plan limits so customers can
+              manage their own account with minimal owner involvement.
             </p>
           </div>
           <div className="setup-list">

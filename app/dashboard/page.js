@@ -229,6 +229,19 @@ export default function DashboardPage() {
     );
   }
 
+  if (account?.suspended_at) {
+    return (
+      <main className="app-shell auth-shell">
+        <section className="panel auth-panel">
+          <p className="eyebrow">Account suspended</p>
+          <h1>This workspace is temporarily locked.</h1>
+          <p className="lead">Contact ScanOps support to restore account access.</p>
+          <button className="secondary-button" type="button" onClick={signOut}>Sign out</button>
+        </section>
+      </main>
+    );
+  }
+
   const dynamicCount = codes.filter((code) => code.is_dynamic).length;
   const scans = codes.reduce((sum, code) => sum + (code.qr_scans?.[0]?.count || 0), 0);
   const plan = findPlan(profile?.plan || "free");

@@ -1,10 +1,10 @@
-# QR Operations SaaS
+# ScanOps
 
-Customer-login QR SaaS for branded codes, saved libraries, dynamic redirect links, and scan tracking.
+ScanOps is a production-oriented SaaS platform for operational QR automation, dynamic redirects, analytics, support workflows, and customer workspaces.
 
-This project is being built as a scalable multi-tenant SaaS application for recurring subscription revenue and future acquisition readiness. See `SAAS-ACQUISITION-READINESS.md` for the product roadmap and enterprise feature checklist.
+MP Technology Consulting remains the parent company and legal owner of the infrastructure, code, domains, billing systems, and intellectual property. Public-facing product branding should remain ScanOps.
 
-It is also being shaped as a low-maintenance automated SaaS. See `LOW-MAINTENANCE-SAAS-OPERATIONS.md` for the operating model.
+See `docs/TECHNICAL-OPERATIONS.md` for production operations, domains, environment variables, billing behavior, and reliability notes.
 
 ## Local Setup
 
@@ -30,19 +30,19 @@ Fill `.env.local` with Supabase keys before using auth or the dashboard.
 The included SaaS pricing is competitive for branded QR tools:
 
 - Free Trial: 10 dynamic QR codes, 1 user, and basic analytics.
-- Starter: $12 monthly, $34 quarterly, or $120 yearly after a 14-day free trial. Includes 25 QR codes, 3 users, dynamic QR management, and basic analytics.
+- Starter: $12 monthly, $34 quarterly, or $120 yearly after a 14-day free trial. Includes 25 QR codes, 1 user, dynamic QR management, and basic analytics.
 - Professional: $29 monthly, $82 quarterly, or $290 yearly after a 14-day free trial. Includes 100 QR codes, 5 users, advanced analytics, branding customization, and export reporting.
-- Business: $79 monthly, $225 quarterly, or $790 yearly after a 14-day free trial. Includes 500 QR codes, 500 users, API access, white-label functionality, bulk QR uploads, team permissions, and advanced exports.
+- Business: $79 monthly, $225 quarterly, or $790 yearly after a 14-day free trial. Includes 500 QR codes, 10 users, API access, white-label functionality, bulk QR uploads, team permissions, and advanced exports.
 - Enterprise: custom pricing with unlimited or custom QR limits, unlimited or custom users, custom integrations, SLA support, and enterprise onboarding.
 
 Saved scan history is limited by plan, but QR redirects continue to work so printed customer materials do not break.
 
 ## Stripe Payments
 
-Use Stripe to accept customer payments. The app never stores card numbers; Stripe Checkout handles the secure payment page.
+Use Stripe to accept customer payments. The app never stores card numbers; Stripe Checkout handles first checkout, Stripe subscriptions handle plan changes with proration, and the billing portal handles invoices and payment methods.
 
 1. Create or log into a Stripe account.
-2. Create four subscription products: Starter, Pro, Business, and Agency.
+2. Create subscription products: Starter, Professional, Business, and Enterprise.
 3. Add monthly, quarterly, and yearly recurring prices for each product.
 4. Copy each Stripe Price ID into Vercel using the matching environment variable from `.env.example`.
 5. Add `STRIPE_SECRET_KEY` in Vercel.
@@ -55,7 +55,7 @@ https://your-domain.com/api/stripe/webhook
 7. Copy the webhook signing secret into `STRIPE_WEBHOOK_SECRET` in Vercel.
 8. Redeploy Vercel.
 
-Enable Stripe Customer Portal in Stripe so customers can self-manage payment methods, invoices, upgrades, downgrades, and cancellations from the dashboard.
+Enable Stripe Customer Portal in Stripe so customers can self-manage payment methods, invoices, and cancellations from the dashboard. Plan changes from the pricing page update existing subscriptions without restarting the free trial.
 
 If you sell this site to another business, they only need to replace the Supabase and Stripe environment variables in Vercel with their own. That makes the app point to their database and their payment account.
 
@@ -103,11 +103,3 @@ Health check for uptime monitoring:
 ```text
 https://your-domain.com/api/health
 ```
-
-## Desktop Build
-
-```powershell
-npm run build:win
-```
-
-The packaged Windows app is generated in `dist/`. The desktop build is still available for one-off customer packaging.

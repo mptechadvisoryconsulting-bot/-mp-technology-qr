@@ -9,7 +9,7 @@ create table if not exists public.profiles (
   logo_url text,
   foreground text default '#111827',
   background text default '#ffffff',
-  sample_url text default 'https://mptechnologyconsulting.com',
+  sample_url text default 'https://scanops.io',
   plan text default 'free',
   created_at timestamptz default now()
 );
@@ -19,6 +19,7 @@ create table if not exists public.accounts (
   owner_user_id uuid not null references auth.users(id) on delete cascade,
   company_name text not null,
   plan text default 'free',
+  suspended_at timestamptz,
   created_at timestamptz default now(),
   updated_at timestamptz default now()
 );
@@ -26,6 +27,9 @@ create table if not exists public.accounts (
 alter table public.profiles
   add column if not exists account_id uuid,
   add column if not exists username text unique;
+
+alter table public.accounts
+  add column if not exists suspended_at timestamptz;
 
 do $$
 begin
@@ -91,6 +95,9 @@ create table if not exists public.qr_codes (
   payload text not null,
   short_code text unique,
   is_dynamic boolean default true,
+  status text default 'active',
+  expires_at timestamptz,
+  tags text[] default '{}'::text[],
   foreground text default '#111827',
   background text default '#ffffff',
   logo_url text,
@@ -101,6 +108,9 @@ create table if not exists public.qr_codes (
 
 alter table public.qr_codes
   add column if not exists style_config jsonb default '{}'::jsonb,
+  add column if not exists status text default 'active',
+  add column if not exists expires_at timestamptz,
+  add column if not exists tags text[] default '{}'::text[],
   add column if not exists account_id uuid references public.accounts(id) on delete cascade,
   add column if not exists folder_id uuid references public.qr_folders(id) on delete set null,
   add column if not exists campaign_id uuid references public.qr_campaigns(id) on delete set null;

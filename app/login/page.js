@@ -32,7 +32,7 @@ export default function LoginPage() {
       <form className="panel auth-panel" onSubmit={submit}>
         <Link className="brand" href="/">
           <span className="brand-mark">QR</span>
-          <span>QR Operations</span>
+          <span>ScanOps</span>
         </Link>
         <div>
           <p className="eyebrow">Customer login</p>

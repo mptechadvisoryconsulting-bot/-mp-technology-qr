@@ -37,7 +37,7 @@ export async function POST(request) {
     );
   }
 
-  const origin = request.headers.get("origin") || process.env.NEXT_PUBLIC_SITE_URL || "https://mp-technology-qr.vercel.app";
+  const origin = request.headers.get("origin") || process.env.NEXT_PUBLIC_SITE_URL || "https://app.scanops.io";
   const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
   const session = await stripe.billingPortal.sessions.create({
     customer: subscription.stripe_customer_id,

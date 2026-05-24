@@ -1,7 +1,11 @@
 import { createAdminSupabase } from "../../../../lib/supabase-admin";
 import { getPlanLimits } from "../../../../lib/pricing";
+import { checkRateLimit } from "../../../../lib/rate-limit";
 
 export async function POST(request) {
+  const rate = checkRateLimit(request, "team-invite", 15, 60000);
+  if (!rate.allowed) return Response.json({ error: "Too many invite attempts. Try again shortly." }, { status: 429 });
+
   const token = request.headers.get("authorization")?.replace(/^Bearer\s+/i, "");
   const body = await request.json();
   if (!token) return Response.json({ error: "Login required." }, { status: 401 });
@@ -35,7 +39,7 @@ export async function POST(request) {
     );
   }
 
-  const origin = request.headers.get("origin") || process.env.NEXT_PUBLIC_SITE_URL || "https://mp-technology-qr.vercel.app";
+  const origin = request.headers.get("origin") || process.env.NEXT_PUBLIC_SITE_URL || "https://app.scanops.io";
   const { data: inviteData, error } = await supabase.auth.admin.inviteUserByEmail(email, {
     redirectTo: `${origin.replace(/\/$/, "")}/login`,
     data: {
@@ -60,6 +64,5 @@ export async function POST(request) {
 function sanitizeUsername(value) {
   return String(value || "")
     .replace(/[^a-z0-9_.-]/gi, "")
-    .toLowerCase()
     .slice(0, 40);
 }
