@@ -127,9 +127,9 @@ export default async function HomePage({ searchParams }) {
             <h2>Start with a 14-day trial, then bill monthly, quarterly, or yearly.</h2>
           </div>
           <div className="plan-list horizontal">
-            <Link href="/pricing"><strong>Starter</strong><span>$9/mo for smaller businesses</span></Link>
-            <Link href="/pricing"><strong>Pro</strong><span>$19/mo for active campaigns</span></Link>
-            <Link href="/pricing"><strong>Business</strong><span>$39/mo for teams and reporting</span></Link>
+            <Link href="/pricing"><strong>Starter</strong><span>$12/mo for focused teams</span></Link>
+            <Link href="/pricing"><strong>Professional</strong><span>$29/mo for active operations</span></Link>
+            <Link href="/pricing"><strong>Business</strong><span>$79/mo for teams and reporting</span></Link>
           </div>
         </section>
       </section>
