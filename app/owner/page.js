@@ -46,6 +46,8 @@ export default function OwnerPage() {
             <span>Owner Console</span>
           </Link>
           <nav aria-label="Primary">
+            <Link href="/demo">Demo</Link>
+            <Link href="/signup">Create customer</Link>
             <Link href="/dashboard">Customer dashboard</Link>
             <Link href="/pricing">Pricing</Link>
             <button className="secondary-button" type="button" onClick={load}>Refresh</button>
@@ -57,6 +59,10 @@ export default function OwnerPage() {
             <p className="eyebrow">Operator dashboard</p>
             <h1>Accounts, usage, and customer support in one view.</h1>
             <p className="lead">Monitor new accounts, plan status, dynamic QR usage, and scan volume across the service.</p>
+            <div className="hero-actions">
+              <Link className="primary-button" href="/signup">Sign up a customer</Link>
+              <Link className="secondary-button" href="/demo">Open client demo</Link>
+            </div>
           </div>
           <div className="metric-grid">
             <Metric label="Accounts" value={summary?.totals.accounts || 0} />

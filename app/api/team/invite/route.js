@@ -5,7 +5,10 @@ export async function POST(request) {
   const token = request.headers.get("authorization")?.replace(/^Bearer\s+/i, "");
   const body = await request.json();
   if (!token) return Response.json({ error: "Login required." }, { status: 401 });
-  if (!body.email || !body.accountId) return Response.json({ error: "Email and account are required." }, { status: 400 });
+  const email = String(body.email || "").trim().toLowerCase();
+  const accountId = String(body.accountId || "").trim();
+  if (!email || !accountId) return Response.json({ error: "Email and account are required." }, { status: 400 });
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return Response.json({ error: "Enter a valid invite email." }, { status: 400 });
 
   const supabase = createAdminSupabase();
   const { data: authData } = await supabase.auth.getUser(token);
@@ -15,7 +18,7 @@ export async function POST(request) {
   const { data: account } = await supabase
     .from("accounts")
     .select("*")
-    .eq("id", body.accountId)
+    .eq("id", accountId)
     .eq("owner_user_id", requester.id)
     .maybeSingle();
   if (!account) return Response.json({ error: "Only the account owner can invite users." }, { status: 403 });
@@ -26,18 +29,37 @@ export async function POST(request) {
     .eq("account_id", account.id);
   const { userLimit } = getPlanLimits(account.plan || "free");
   if ((count || 0) >= userLimit) {
-    return Response.json({ error: `Seat limit reached for the ${account.plan || "free"} plan.` }, { status: 400 });
+    return Response.json(
+      { error: `Seat cap is locked for the ${account.plan || "free"} plan. Upgrade before inviting another user.` },
+      { status: 400 },
+    );
   }
 
-  const { data: inviteData, error } = await supabase.auth.admin.inviteUserByEmail(body.email, {
+  const origin = request.headers.get("origin") || process.env.NEXT_PUBLIC_SITE_URL || "https://mp-technology-qr.vercel.app";
+  const { data: inviteData, error } = await supabase.auth.admin.inviteUserByEmail(email, {
+    redirectTo: `${origin.replace(/\/$/, "")}/login`,
     data: {
       company_name: account.company_name,
       invited_account_id: account.id,
       invited_role: "member",
-      username: body.username || body.email.split("@")[0],
+      username: sanitizeUsername(body.username) || email.split("@")[0],
     },
   });
-  if (error) return Response.json({ error: error.message }, { status: 400 });
+  if (error) {
+    return Response.json(
+      {
+        error: `${error.message}. Check that Supabase Auth email invites are enabled and the Site URL points to your Vercel domain.`,
+      },
+      { status: 400 },
+    );
+  }
 
   return Response.json({ ok: true, userId: inviteData.user?.id || null });
+}
+
+function sanitizeUsername(value) {
+  return String(value || "")
+    .replace(/[^a-z0-9_.-]/gi, "")
+    .toLowerCase()
+    .slice(0, 40);
 }

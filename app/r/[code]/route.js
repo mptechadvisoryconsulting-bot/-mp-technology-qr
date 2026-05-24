@@ -15,7 +15,10 @@ export async function GET(request, { params }) {
     .maybeSingle();
 
   if (error || !qrCode) {
-    return NextResponse.redirect(new URL("/", request.url));
+    return new Response(renderNotFoundPage(code), {
+      status: 404,
+      headers: { "Content-Type": "text/html; charset=utf-8" },
+    });
   }
 
   const userAgent = request.headers.get("user-agent") || "";
@@ -64,7 +67,7 @@ export async function GET(request, { params }) {
     });
   }
 
-  return NextResponse.redirect(qrCode.destination_url);
+  return NextResponse.redirect(normalizeRedirectDestination(qrCode.destination_url));
 }
 
 function getPublicSiteUrl() {
@@ -109,6 +112,37 @@ function renderTextPage(text) {
   </head>
   <body><main>${escaped}</main></body>
 </html>`;
+}
+
+function renderNotFoundPage(code) {
+  const escapedCode = escapeHtml(code);
+  return `<!doctype html>
+<html>
+  <head>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>QR link not found</title>
+    <style>
+      body{font-family:Arial,sans-serif;margin:0;min-height:100vh;display:grid;place-items:center;background:#f4f7fb;color:#101828}
+      main{max-width:560px;padding:28px;border:1px solid #d9e2ec;border-radius:14px;background:#fff;line-height:1.55}
+      a{color:#0f766e;font-weight:800}
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>QR link not found.</h1>
+      <p>The tracked code <strong>${escapedCode}</strong> is not saved, was deleted, or has not been deployed yet.</p>
+      <p><a href="/">Return to the QR platform</a></p>
+    </main>
+  </body>
+</html>`;
+}
+
+function normalizeRedirectDestination(value) {
+  if (!value) return getPublicSiteUrl();
+  const trimmed = String(value).trim();
+  if (/^https?:\/\//i.test(trimmed)) return trimmed;
+  if (/^(mailto|tel|sms):/i.test(trimmed)) return trimmed;
+  return `https://${trimmed.replace(/^\/+/, "")}`;
 }
 
 function escapeHtml(value) {

@@ -3,6 +3,8 @@ import { redirect } from "next/navigation";
 import { createAdminSupabase } from "../lib/supabase-admin";
 import { getPlanLimits } from "../lib/pricing";
 
+export const dynamic = "force-dynamic";
+
 const DEFAULT_PUBLIC_SITE_URL = "https://mp-technology-qr.vercel.app";
 
 const capabilities = [
@@ -15,7 +17,8 @@ const capabilities = [
 export default async function HomePage({ searchParams }) {
   const params = await searchParams;
   if (params?.qr) {
-    const redirectResult = await resolveQrCode(params.qr);
+    const qrCode = String(params.qr || "").trim();
+    const redirectResult = await resolveQrCode(qrCode);
     if (redirectResult?.kind === "redirect") {
       redirect(redirectResult.destination);
     }
@@ -43,6 +46,7 @@ export default async function HomePage({ searchParams }) {
         </main>
       );
     }
+    return <QrNotFound code={qrCode} />;
   }
 
   return (
@@ -54,6 +58,7 @@ export default async function HomePage({ searchParams }) {
             <span>QR Operations</span>
           </Link>
           <nav aria-label="Primary">
+            <Link href="/demo">Demo</Link>
             <Link href="/pricing">Pricing</Link>
             <Link href="/owner">Owner</Link>
             <Link href="/login">Log in</Link>
@@ -133,7 +138,7 @@ export default async function HomePage({ searchParams }) {
 }
 
 async function resolveQrCode(code) {
-  if (code === "preview") return null;
+  if (!code || code === "preview") return null;
   const supabase = createAdminSupabase();
   const { data: qrCode, error } = await supabase
     .from("qr_codes")
@@ -149,7 +154,9 @@ async function resolveQrCode(code) {
   if (qrCode.type === "text") return { kind: "text", destination: qrCode.destination_url };
   if (qrCode.type === "support") return { kind: "redirect", destination: qrCode.destination_url || `${getPublicSiteUrl()}/support/${code}` };
   if (/^(mailto|tel|sms):/i.test(qrCode.destination_url)) return { kind: "scheme", destination: qrCode.destination_url };
-  return { kind: "redirect", destination: qrCode.destination_url };
+  const destination = normalizeRedirectDestination(qrCode.destination_url);
+  if (!destination) return null;
+  return { kind: "redirect", destination };
 }
 
 function getPublicSiteUrl() {
@@ -180,4 +187,28 @@ async function trackScan(supabase, qrCode) {
   if ((count || 0) < scanLimit) {
     await supabase.from("qr_scans").insert({ qr_code_id: qrCode.id });
   }
+}
+
+function normalizeRedirectDestination(value) {
+  if (!value) return "";
+  const trimmed = String(value).trim();
+  if (/^https?:\/\//i.test(trimmed)) return trimmed;
+  if (/^(mailto|tel|sms):/i.test(trimmed)) return trimmed;
+  return `https://${trimmed.replace(/^\/+/, "")}`;
+}
+
+function QrNotFound({ code }) {
+  return (
+    <main className="app-shell auth-shell">
+      <section className="panel auth-panel">
+        <p className="eyebrow">Tracked QR link</p>
+        <h1>QR link not found.</h1>
+        <p className="lead">
+          This tracked code is not saved in the database yet, was deleted, or belongs to an older upload.
+        </p>
+        <p className="form-message">Code checked: {code || "blank"}</p>
+        <Link className="primary-button" href="/login">Log in to check campaigns</Link>
+      </section>
+    </main>
+  );
 }

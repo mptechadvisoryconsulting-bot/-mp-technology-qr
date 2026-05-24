@@ -53,10 +53,19 @@ export default function DashboardPage() {
       setAccount(accountRow);
       const { data: memberRows } = await supabase
         .from("account_members")
-        .select("*, profiles(username, company_name)")
+        .select("*")
         .eq("account_id", activeProfile.account_id)
         .order("created_at", { ascending: true });
-      setMembers(memberRows || []);
+      const userIds = (memberRows || []).map((member) => member.user_id).filter(Boolean);
+      let profileMap = new Map();
+      if (userIds.length) {
+        const { data: memberProfiles } = await supabase
+          .from("profiles")
+          .select("id, username, company_name")
+          .in("id", userIds);
+        profileMap = new Map((memberProfiles || []).map((memberProfile) => [memberProfile.id, memberProfile]));
+      }
+      setMembers((memberRows || []).map((member) => ({ ...member, profiles: profileMap.get(member.user_id) || null })));
     }
     const activeAccountId = activeAccount?.id || activeProfile.account_id;
 
@@ -194,7 +203,7 @@ export default function DashboardPage() {
     });
     const payload = await response.json();
     if (!response.ok) {
-      setBillingMessage(payload.error || "Billing portal is not available yet.");
+      setBillingMessage(payload.next ? `${payload.error} Open Plans to continue.` : payload.error || "Billing portal is not available yet.");
       return;
     }
     window.location.href = payload.url;
@@ -231,6 +240,8 @@ export default function DashboardPage() {
     monthlyScans: monthlyScanCount,
     ...getPlanLimits(profile?.plan || "free"),
   };
+  const seatCount = Math.max(members.length, 1);
+  const seatCapLocked = seatCount >= usage.userLimit;
 
   return (
     <main className="app-shell">
@@ -278,7 +289,7 @@ export default function DashboardPage() {
             <div className="sidebar-block">
               <p className="eyebrow">Overview</p>
               <UsageMini label="Dynamic QR Codes" value={dynamicCount} limit={usage.dynamicLimit} />
-              <UsageMini label="Team users" value={members.length || 1} limit={usage.userLimit} />
+              <UsageMini label="Team users" value={seatCount} limit={usage.userLimit} />
               <div className="trial-row">
                 <span>{subscription?.cancel_at_period_end ? "Access ends in" : "Trial ends in"}</span>
                 <strong>
@@ -371,7 +382,7 @@ export default function DashboardPage() {
           <div className="usage-grid">
             <UsageBar label="Dynamic QR codes" value={dynamicCount} limit={usage.dynamicLimit} />
             <UsageBar label="Saved scan history this month" value={monthlyScanCount} limit={usage.scanLimit} />
-            <UsageBar label="Team seats" value={members.length || 1} limit={usage.userLimit} />
+            <UsageBar label="Team seats" value={seatCount} limit={usage.userLimit} />
           </div>
           <p className="form-message">
             Scans keep redirecting even when the history limit is reached. Upgrade to store more scan records and analytics.
@@ -384,7 +395,7 @@ export default function DashboardPage() {
               <p className="eyebrow">Team</p>
               <h2>Company users</h2>
             </div>
-            <span className="status">{members.length || 1}/{usage.userLimit} seats</span>
+            <span className="status">{seatCount}/{usage.userLimit} seats</span>
           </div>
           <div className="team-list">
             {members.map((member) => (
@@ -404,10 +415,14 @@ export default function DashboardPage() {
             <form className="team-form" onSubmit={inviteTeamMember}>
               <input value={teamUsername} onChange={(event) => setTeamUsername(event.target.value.replace(/[^a-z0-9_.-]/gi, "").toLowerCase())} placeholder="username" />
               <input value={teamEmail} onChange={(event) => setTeamEmail(event.target.value)} type="email" placeholder="private login email" required />
-              <button className="secondary-button" type="submit">Invite user</button>
+              <button className="secondary-button" type="submit" disabled={seatCapLocked}>Invite user</button>
             </form>
           )}
-          <p className="form-message">{teamMessage || "Email is used privately for secure login; username is what the workspace shows."}</p>
+          <p className="form-message">
+            {teamMessage || (seatCapLocked
+              ? "Seat cap is locked on this plan. Upgrade before inviting another user."
+              : "Email is used privately for secure login; username is what the workspace shows.")}
+          </p>
         </section>
 
         <section className="panel billing-panel">
